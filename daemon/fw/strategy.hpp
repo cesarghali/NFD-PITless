@@ -50,6 +50,9 @@ public:
   virtual
   ~Strategy();
 
+  Forwarder&
+  getForwarder() const;
+
   /// a Name that represent the Strategy program
   const Name&
   getName() const;
@@ -150,6 +153,12 @@ private:
 
   MeasurementsAccessor m_measurements;
 };
+
+inline Forwarder&
+Strategy::getForwarder() const
+{
+  return m_forwarder;
+}
 
 inline const Name&
 Strategy::getName() const

@@ -59,6 +59,12 @@ public:
   VIRTUAL_WITH_TESTS
   ~Forwarder();
 
+  shared_ptr<NullFace>
+  getCsFace() const;
+
+  const Name
+  getLOCALHOSTNAME() const;
+
   const ForwarderCounters&
   getCounters() const;
 
@@ -111,6 +117,9 @@ public: // forwarding entrypoints and tables
 public: // allow enabling ndnSIM content store (will be removed in the future)
   void
   setCsFromNdnSim(ns3::Ptr<ns3::ndn::ContentStore> cs);
+
+  ns3::Ptr<ns3::ndn::ContentStore>
+  getCsFromNdnSim();
 
 public:
   /** \brief trigger before PIT entry is satisfied
@@ -180,6 +189,7 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE: // pipelines
   VIRTUAL_WITH_TESTS void
   onDataUnsolicited(Face& inFace, const Data& data);
 
+protected:
   /** \brief outgoing Data pipeline
    */
   VIRTUAL_WITH_TESTS void
@@ -237,6 +247,18 @@ private:
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;
 };
+
+inline shared_ptr<NullFace>
+Forwarder::getCsFace() const
+{
+  return m_csFace;
+}
+
+inline const Name
+Forwarder::getLOCALHOSTNAME() const
+{
+  return LOCALHOST_NAME;
+}
 
 inline const ForwarderCounters&
 Forwarder::getCounters() const
@@ -320,6 +342,12 @@ inline void
 Forwarder::setCsFromNdnSim(ns3::Ptr<ns3::ndn::ContentStore> cs)
 {
   m_csFromNdnSim = cs;
+}
+
+inline ns3::Ptr<ns3::ndn::ContentStore>
+Forwarder::getCsFromNdnSim()
+{
+  return m_csFromNdnSim;
 }
 
 #ifdef WITH_TESTS
