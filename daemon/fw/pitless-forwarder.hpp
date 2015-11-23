@@ -53,11 +53,19 @@ public: // forwarding entrypoints and tables
   void
   onInterest(Face& face, const Interest& interest);
 
+  void
+  onData(Face& face, const Data& data);
+
 PUBLIC_WITH_TESTS_ELSE_PRIVATE: // pipelines
   /** \brief incoming Interest pipeline
    */
   VIRTUAL_WITH_TESTS void
   onIncomingInterest(Face& inFace, const Interest& interest);
+
+  /** \brief incoming Data pipeline
+   */
+  VIRTUAL_WITH_TESTS void
+  onIncomingData(Face& inFace, const Data& data);
 
   /** \brief Content Store miss pipeline
   */
@@ -92,6 +100,12 @@ inline void
 PITlessForwarder::onInterest(Face& face, const Interest& interest)
 {
   this->onIncomingInterest(face, interest);
+}
+
+inline void
+PITlessForwarder::onData(Face& face, const Data& data)
+{
+  this->onIncomingData(face, data);
 }
 
 #ifdef WITH_TESTS

@@ -91,8 +91,6 @@ PITlessForwarder::onContentStoreMiss(const Face& inFace,
 {
   NFD_LOG_DEBUG("onContentStoreMiss interest=" << interest.getName());
 
-  shared_ptr<Face> face = const_pointer_cast<Face>(inFace.shared_from_this());
-
   // FIB lookup
   shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(interest.getName());
 
@@ -116,6 +114,62 @@ PITlessForwarder::onContentStoreHit(const Face& inFace,
 
   // goto outgoing Data pipeline
   this->onOutgoingData(data, *const_pointer_cast<Face>(inFace.shared_from_this()));
+}
+
+static inline bool
+predicate_canForwardTo_NextHop()
+{
+  return true;
+}
+
+void
+PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
+{
+  // receive Data
+  NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() << " data=" << data.getSupportingName());
+  const_cast<Data&>(data).setIncomingFaceId(inFace.getId());
+
+  // /localhost scope control
+  bool isViolatingLocalhost = !inFace.isLocal() &&
+    Forwarder::getLOCALHOSTNAME().isPrefixOf(data.getSupportingName());
+  if (isViolatingLocalhost) {
+    NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
+                  " data=" << data.getSupportingName() << " violates /localhost");
+    // (drop)
+    return;
+  }
+
+  // Remove Ptr<Packet> from the Data before inserting into cache, serving two purposes
+  // - reduce amount of memory used by cached entries
+  // - remove all tags that (e.g., hop count tag) that could have been associated with Ptr<Packet>
+  //
+  // Copying of Data is relatively cheap operation, as it copies (mostly) a collection of Blocks
+  // pointing to the same underlying memory buffer.
+  shared_ptr<Data> dataCopyWithoutPacket = make_shared<Data>(data);
+  dataCopyWithoutPacket->removeTag<ns3::ndn::Ns3PacketTag>();
+
+  // CS insert
+  if (Forwarder::getCsFromNdnSim() == nullptr)
+    Forwarder::getCs().insert(*dataCopyWithoutPacket);
+  else
+    Forwarder::getCsFromNdnSim()->Add(dataCopyWithoutPacket);
+
+  // FIB lookup
+  shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(data.getName());
+
+  const fib::NextHopList& nexthops = fibEntry->getNextHops();
+  fib::NextHopList::const_iterator it = std::find_if(nexthops.begin(), nexthops.end(),
+                                                     bind(&predicate_canForwardTo_NextHop));
+  if (it == nexthops.end()) {
+    return;
+  }
+
+  shared_ptr<Face> outFace = it->getFace();
+  if (outFace.get() == &inFace) {
+    return;
+  }
+  // goto outgoing Data pipeline
+  this->onOutgoingData(data, *outFace);
 }
 
 void
