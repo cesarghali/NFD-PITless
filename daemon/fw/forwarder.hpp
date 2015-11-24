@@ -56,7 +56,7 @@ class Forwarder
 public:
   Forwarder();
 
-  VIRTUAL_WITH_TESTS
+  virtual
   ~Forwarder();
 
   shared_ptr<NullFace>
