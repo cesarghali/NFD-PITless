@@ -44,6 +44,7 @@ using fw::PITlessStrategy;
 PITlessForwarder::PITlessForwarder()
   : Forwarder()
 {
+  fw::installPITlessStrategies(*this);
 }
 
 PITlessForwarder::~PITlessForwarder()

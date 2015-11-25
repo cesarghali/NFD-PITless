@@ -50,12 +50,13 @@ public:
   virtual
   ~Strategy();
 
-  Forwarder&
-  getForwarder() const;
-
   /// a Name that represent the Strategy program
   const Name&
   getName() const;
+
+protected:
+  Forwarder&
+  getForwarder() const;
 
 public: // triggers
   /** \brief trigger after Interest is received

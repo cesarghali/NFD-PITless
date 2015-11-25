@@ -29,7 +29,7 @@ namespace nfd {
 namespace fw {
 
 const Name PITlessStrategy::STRATEGY_NAME("ndn:/localhost/nfd/strategy/pitless/%FD%01");
-NFD_REGISTER_STRATEGY(PITlessStrategy);
+NFD_REGISTER_PITLESS_STRATEGY(PITlessStrategy);
 
 PITlessStrategy::PITlessStrategy(Forwarder& forwarder, const Name& name)
   : Strategy(forwarder, name)

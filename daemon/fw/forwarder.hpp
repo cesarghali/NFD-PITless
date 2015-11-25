@@ -41,6 +41,8 @@
 
 namespace nfd {
 
+class PITlessForwarder;
+
 namespace fw {
 class Strategy;
 } // namespace fw
@@ -84,7 +86,7 @@ public: // faces
    *  shortcut to .getFaceTable().add(face)
    */
   void
-  addFace(shared_ptr<Face> face);
+  addFace(shared_ptr<Face> face, bool isPITless = false);
 
 public: // forwarding entrypoints and tables
   void
@@ -279,9 +281,9 @@ Forwarder::getFace(FaceId id) const
 }
 
 inline void
-Forwarder::addFace(shared_ptr<Face> face)
+Forwarder::addFace(shared_ptr<Face> face, bool isPITless)
 {
-  m_faceTable.add(face);
+  m_faceTable.add(face, isPITless);
 }
 
 inline void

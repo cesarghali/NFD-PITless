@@ -76,7 +76,7 @@ PITlessStrategy::sendInterestPITless(const Interest& interest,
                                      shared_ptr<Face> outFace,
                                      bool wantNewNonce)
 {
-  ((nfd::PITlessForwarder&)(Strategy::getForwarder())).onOutgoingInterestPITless(interest, *outFace, wantNewNonce);
+  dynamic_cast<nfd::PITlessForwarder&>(Strategy::getForwarder()).onOutgoingInterestPITless(interest, *outFace, wantNewNonce);
 }
 
 } // namespace fw

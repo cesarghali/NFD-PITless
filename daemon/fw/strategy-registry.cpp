@@ -42,10 +42,23 @@ getStrategyFactories()
   return strategyFactories;
 }
 
+static std::map<Name, PITlessStrategyCreateFunc>&
+getPITlessStrategyFactories()
+{
+  static std::map<Name, PITlessStrategyCreateFunc> pitlessStrategyFactories;
+  return pitlessStrategyFactories;
+}
+
 void
 registerStrategyImpl(const Name& strategyName, const StrategyCreateFunc& createFunc)
 {
   getStrategyFactories().insert({strategyName, createFunc});
+}
+
+void
+registerPITlessStrategyImpl(const Name& strategyName, const PITlessStrategyCreateFunc& createFunc)
+{
+  getPITlessStrategyFactories().insert({strategyName, createFunc});
 }
 
 void
@@ -55,6 +68,17 @@ installStrategies(Forwarder& forwarder)
   for (const auto& pair : getStrategyFactories()) {
     if (!sc.hasStrategy(pair.first, true)) {
       sc.install(pair.second(forwarder));
+    }
+  }
+}
+
+void
+installPITlessStrategies(PITlessForwarder& pitlessForwarder)
+{
+  StrategyChoice& sc = pitlessForwarder.getStrategyChoice();
+  for (const auto& pair : getPITlessStrategyFactories()) {
+    if (!sc.hasStrategy(pair.first, true)) {
+      sc.install(pair.second(pitlessForwarder));
     }
   }
 }

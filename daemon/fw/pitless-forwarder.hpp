@@ -27,6 +27,7 @@
 #define NFD_DAEMON_FW_PITLESS_FORWARDER_HPP
 
 #include "forwarder.hpp"
+#include "face-table.hpp"
 
 namespace nfd {
 

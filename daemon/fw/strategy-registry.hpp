@@ -28,6 +28,8 @@
 
 #include "common.hpp"
 
+#include "ns3/ndnSIM/NFD/daemon/fw/pitless-forwarder.hpp"
+
 namespace nfd {
 
 class Forwarder;
@@ -42,11 +44,19 @@ makeDefaultStrategy(Forwarder& forwarder);
 void
 installStrategies(Forwarder& forwarder);
 
+void
+installPITlessStrategies(PITlessForwarder& pitlessForwarder);
+
 
 typedef std::function<shared_ptr<Strategy>(Forwarder&)> StrategyCreateFunc;
 
+typedef std::function<shared_ptr<Strategy>(PITlessForwarder&)> PITlessStrategyCreateFunc;
+
 void
 registerStrategyImpl(const Name& strategyName, const StrategyCreateFunc& createFunc);
+
+void
+registerPITlessStrategyImpl(const Name& strategyName, const PITlessStrategyCreateFunc& createFunc);
 
 /** \brief registers a strategy to be installed later
  */
@@ -56,6 +66,16 @@ registerStrategy()
 {
   registerStrategyImpl(S::STRATEGY_NAME,
                        [] (Forwarder& forwarder) { return make_shared<S>(ref(forwarder)); });
+}
+
+/** \brief registers a strategy to be installed later
+ */
+template<typename S>
+void
+registerPITlessStrategy()
+{
+  registerPITlessStrategyImpl(S::STRATEGY_NAME,
+                              [] (PITlessForwarder& pitlessForwarder) { return make_shared<S>(ref(pitlessForwarder)); });
 }
 
 /** \brief registers a built-in strategy
@@ -71,6 +91,20 @@ public:                                                           \
     ::nfd::fw::registerStrategy<StrategyType>();                  \
   }                                                               \
 } g_nfdAuto ## StrategyType ## StrategyRegistrationVariable
+
+/** \brief registers a built-in PITless strategy
+ *
+ *  This macro should appear once in .cpp of each built-in PITless strategy.
+ */
+#define NFD_REGISTER_PITLESS_STRATEGY(StrategyType)                             \
+static class NfdAuto ## PITlessStrategyType ## PITlessStrategyRegistrationClass \
+{                                                                               \
+public:                                                                         \
+  NfdAuto ## PITlessStrategyType ## PITlessStrategyRegistrationClass()          \
+  {                                                                             \
+    ::nfd::fw::registerPITlessStrategy<StrategyType>();                         \
+  }                                                                             \
+} g_nfdAuto ## PITlessStrategyType ## PITlessStrategyRegistrationVariable
 
 } // namespace fw
 } // namespace nfd

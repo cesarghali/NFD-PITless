@@ -32,6 +32,7 @@
 namespace nfd {
 
 class Forwarder;
+class PITlessForwarder;
 
 /** \brief container of all Faces
  */
@@ -45,7 +46,7 @@ public:
   ~FaceTable();
 
   VIRTUAL_WITH_TESTS void
-  add(shared_ptr<Face> face);
+  add(shared_ptr<Face> face, bool isPITless = false);
 
   /// add a special Face with a reserved FaceId
   VIRTUAL_WITH_TESTS void
@@ -85,7 +86,7 @@ public: // signals
 
 private:
   void
-  addImpl(shared_ptr<Face> face, FaceId faceId);
+  addImpl(shared_ptr<Face> face, FaceId faceId, bool isPITless = false);
 
   // remove is private because it's a handler of face.onFail signal.
   // face->close() closes the face and triggers .remove()
