@@ -41,9 +41,10 @@ PITlessStrategy::~PITlessStrategy()
 }
 
 static inline bool
-predicate_canForwardTo_NextHop()
+predicate_canForwardTo_NextHop(const Face& inFace,
+                               const fib::NextHop& nexthop)
 {
-  return true;
+  return (inFace.getId() != nexthop.getFace()->getId());
 }
 
 void
@@ -52,8 +53,11 @@ PITlessStrategy::afterReceiveInterestPITless(const Face& inFace,
                                              shared_ptr<fib::Entry> fibEntry)
 {
   const fib::NextHopList& nexthops = fibEntry->getNextHops();
-  fib::NextHopList::const_iterator it = std::find_if(nexthops.begin(), nexthops.end(),
-                                                     bind(&predicate_canForwardTo_NextHop));
+  fib::NextHopList::const_iterator it;
+  for (it = nexthops.begin(); it != nexthops.end(); ++it) {
+    if (predicate_canForwardTo_NextHop(inFace, *it) == true)
+      break;
+  }
 
   if (it == nexthops.end()) {
     return;

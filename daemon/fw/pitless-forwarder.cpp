@@ -96,7 +96,9 @@ PITlessForwarder::onContentStoreMiss(const Face& inFace,
   shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(interest.getName());
 
   // dispatch to strategy
-  this->dispatchToPITlessStrategy(interest.getName(), bind(&PITlessStrategy::afterReceiveInterestPITless, _1,
+  // TODO(cesar): this is hard coded, find a better way.
+  Name strategyName = PITlessStrategy::STRATEGY_NAME;
+  this->dispatchToPITlessStrategy(strategyName, bind(&PITlessStrategy::afterReceiveInterestPITless, _1,
                                                     cref(inFace), cref(interest), fibEntry));
 }
 
@@ -107,7 +109,9 @@ PITlessForwarder::onContentStoreHit(const Face& inFace,
 {
   NFD_LOG_DEBUG("onContentStoreHit interest=" << interest.getName());
 
-  this->dispatchToPITlessStrategy(interest.getName(), bind(&Strategy::beforeSatisfyInterest, _1,
+  // TODO(cesar): this is hard coded, find a better way.
+  Name strategyName = PITlessStrategy::STRATEGY_NAME;
+  this->dispatchToPITlessStrategy(strategyName, bind(&Strategy::beforeSatisfyInterest, _1,
                                                     nullptr, cref(*Forwarder::getCsFace()), cref(data)));
 
   const_pointer_cast<Data>(data.shared_from_this())->setIncomingFaceId(FACEID_CONTENT_STORE);
@@ -183,12 +187,6 @@ PITlessForwarder::onOutgoingInterestPITless(const Interest& interest, Face& outF
   }
   NFD_LOG_DEBUG("onOutgoingInterest face=" << outFace.getId() <<
                 " interest=" << interest.getName());
-
-  //if (wantNewNonce) {
-  //  interest = make_shared<Interest>(*interest);
-  //  static boost::random::uniform_int_distribution<uint32_t> dist;
-  //  interest->setNonce(dist(getGlobalRng()));
-  //}
 
   // send Interest
   outFace.sendInterest(interest);
