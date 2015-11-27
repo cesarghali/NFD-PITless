@@ -122,9 +122,10 @@ PITlessForwarder::onContentStoreHit(const Face& inFace,
 }
 
 static inline bool
-predicate_canForwardTo_NextHop()
+predicate_canForwardTo_NextHop(const Face& inFace,
+                               const fib::NextHop& nexthop)
 {
-  return true;
+  return (inFace.getId() != nexthop.getFace()->getId());
 }
 
 void
@@ -162,10 +163,18 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
   // FIB lookup
   shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(data.getName());
 
+  std::cout << "****** " << data.getName() << std::endl;
+  std::cout << "****** " << data.getSupportingName() << std::endl;
+
   const fib::NextHopList& nexthops = fibEntry->getNextHops();
-  fib::NextHopList::const_iterator it = std::find_if(nexthops.begin(), nexthops.end(),
-                                                     bind(&predicate_canForwardTo_NextHop));
+  fib::NextHopList::const_iterator it;
+  for (it = nexthops.begin(); it != nexthops.end(); ++it) {
+    if (predicate_canForwardTo_NextHop(inFace, *it) == true)
+      break;
+  }
+
   if (it == nexthops.end()) {
+    NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() << " data=" << data.getSupportingName() << " no out face to forward on");
     return;
   }
 
