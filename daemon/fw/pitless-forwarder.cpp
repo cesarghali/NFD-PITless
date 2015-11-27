@@ -57,7 +57,8 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 {
   // receive Interest
   NFD_LOG_DEBUG("onIncomingInterest face=" << inFace.getId() <<
-                " interest=" << interest.getName());
+                " interest=[N:" << interest.getName() <<
+                ", SN:" << interest.getSupportingName() << "]");
   const_cast<Interest&>(interest).setIncomingFaceId(inFace.getId());
 
   // /localhost scope control
@@ -65,7 +66,9 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
     Forwarder::getLOCALHOSTNAME().isPrefixOf(interest.getName());
   if (isViolatingLocalhost) {
     NFD_LOG_DEBUG("onIncomingInterest face=" << inFace.getId() <<
-                  " interest=" << interest.getName() << " violates /localhost");
+                  " interest=[N:" << interest.getName() <<
+                  ", SN:" << interest.getSupportingName() <<
+                  "] violates /localhost");
     // (drop)
     return;
   }
@@ -90,7 +93,8 @@ void
 PITlessForwarder::onContentStoreMiss(const Face& inFace,
                                      const Interest& interest)
 {
-  NFD_LOG_DEBUG("onContentStoreMiss interest=" << interest.getName());
+  NFD_LOG_DEBUG("onContentStoreMiss interest=[N:" << interest.getName() <<
+                ", SN:" << interest.getSupportingName() << "]");
 
   // FIB lookup
   shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(interest.getName());
@@ -107,7 +111,8 @@ PITlessForwarder::onContentStoreHit(const Face& inFace,
                                     const Interest& interest,
                                     const Data& data)
 {
-  NFD_LOG_DEBUG("onContentStoreHit interest=" << interest.getName());
+  NFD_LOG_DEBUG("onContentStoreHit interest=[N:" << interest.getName() <<
+                ", SN:" << interest.getSupportingName() << "]");
 
   // TODO(cesar): this is hard coded, find a better way.
   Name strategyName = PITlessStrategy::STRATEGY_NAME;
@@ -132,15 +137,19 @@ void
 PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
 {
   // receive Data
-  NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() << " data=" << data.getSupportingName());
+  NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
+                " data=[N:" << data.getName() <<
+                ", SN:" << data.getSupportingName() << "]");
   const_cast<Data&>(data).setIncomingFaceId(inFace.getId());
 
   // /localhost scope control
   bool isViolatingLocalhost = !inFace.isLocal() &&
-    Forwarder::getLOCALHOSTNAME().isPrefixOf(data.getSupportingName());
+    Forwarder::getLOCALHOSTNAME().isPrefixOf(Name(data.getSupportingName()));
   if (isViolatingLocalhost) {
     NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
-                  " data=" << data.getSupportingName() << " violates /localhost");
+                  " data=[N:" << data.getName() <<
+                  ", SN:" << data.getSupportingName() <<
+                  "] violates /localhost");
     // (drop)
     return;
   }
@@ -163,9 +172,6 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
   // FIB lookup
   shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(data.getName());
 
-  std::cout << "****** " << data.getName() << std::endl;
-  std::cout << "****** " << data.getSupportingName() << std::endl;
-
   const fib::NextHopList& nexthops = fibEntry->getNextHops();
   fib::NextHopList::const_iterator it;
   for (it = nexthops.begin(); it != nexthops.end(); ++it) {
@@ -174,7 +180,10 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
   }
 
   if (it == nexthops.end()) {
-    NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() << " data=" << data.getSupportingName() << " no out face to forward on");
+    NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
+                  " data=[N:" << data.getName() <<
+                  ", SN:" << data.getSupportingName() <<
+                  "] no out face to forward on");
     return;
   }
 
@@ -195,7 +204,8 @@ PITlessForwarder::onOutgoingInterestPITless(const Interest& interest, Face& outF
     return;
   }
   NFD_LOG_DEBUG("onOutgoingInterest face=" << outFace.getId() <<
-                " interest=" << interest.getName());
+                " interest=[N:" << interest.getName() <<
+                ", SN:" << interest.getSupportingName() << "]");
 
   // send Interest
   outFace.sendInterest(interest);
