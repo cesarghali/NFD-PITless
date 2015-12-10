@@ -145,6 +145,8 @@ predicate_canForwardTo_NextHop(const Face& inFace,
 void
 PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
 {
+  auto start = std::chrono::high_resolution_clock::now();
+
   // receive Data
   NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
                 " data=[N:" << data.getName() <<
@@ -193,13 +195,35 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
                   " data=[N:" << data.getName() <<
                   ", SN:" << data.getSupportingName() <<
                   "] no out face to forward on");
+
+      auto end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<float> duration = end - start;
+
+      if (m_contentDelayCallback != 0) {
+        m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+      }
+
     return;
   }
 
   shared_ptr<Face> outFace = it->getFace();
   if (outFace.get() == &inFace) {
+      auto end = std::chrono::high_resolution_clock::now();
+      std::chrono::duration<float> duration = end - start;
+
+      if (m_contentDelayCallback != 0) {
+        m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+      }
     return;
   }
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<float> duration = end - start;
+
+  if (m_contentDelayCallback != 0) {
+    m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+  }
+
   // goto outgoing Data pipeline
   this->onOutgoingData(data, *outFace);
 }
