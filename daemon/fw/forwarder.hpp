@@ -41,7 +41,8 @@
 
 #include <chrono>
 
-typedef void (*ForwardingDelayCallback)(ns3::Time, float);
+typedef void (*InterestFwdDelayCallback)(int id, ns3::Time, float);
+typedef void (*ContentFwdDelayCallback)(int id, ns3::Time, float);
 
 namespace nfd {
 
@@ -75,7 +76,7 @@ public:
   getCounters() const;
 
   void
-  setForwardingDelayCallback(size_t forwardingDelayCallback, size_t id);
+  setForwardingDelayCallback(size_t interestDelayCallback, size_t contentDelayCallback, size_t id);
 
 public: // faces
   FaceTable&
@@ -257,7 +258,8 @@ private:
   friend class fw::Strategy;
 
 public:
-  ForwardingDelayCallback m_forwardingDelayCallback;
+  InterestFwdDelayCallback m_interestDelayCallback;
+  ContentFwdDelayCallback m_contentDelayCallback;
   size_t m_id;
 };
 
@@ -358,10 +360,11 @@ Forwarder::setCsFromNdnSim(ns3::Ptr<ns3::ndn::ContentStore> cs)
 }
 
 inline void
-Forwarder::setForwardingDelayCallback(size_t forwardingDelayCallback, size_t id)
+Forwarder::setForwardingDelayCallback(size_t interestDelayCallback, size_t contentDelayCallback, size_t id)
 {
   m_id = id;
-  m_forwardingDelayCallback = reinterpret_cast<ForwardingDelayCallback>(forwardingDelayCallback);
+  m_interestDelayCallback = reinterpret_cast<InterestFwdDelayCallback>(interestDelayCallback);
+  m_contentDelayCallback = reinterpret_cast<ContentFwdDelayCallback>(contentDelayCallback);
 }
 
 inline ns3::Ptr<ns3::ndn::ContentStore>

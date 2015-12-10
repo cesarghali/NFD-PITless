@@ -93,8 +93,8 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float> duration = end - start;
 
-  if (m_forwardingDelayCallback != 0) {
-    m_forwardingDelayCallback(ns3::Simulator::Now(), duration.count());
+  if (m_interestDelayCallback != 0) {
+    m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
   }
 }
 

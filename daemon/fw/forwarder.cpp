@@ -121,8 +121,8 @@ Forwarder::onIncomingInterest(Face& inFace, const Interest& interest)
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float> duration = end - start;
 
-  if (m_forwardingDelayCallback != 0) {
-    m_forwardingDelayCallback(ns3::Simulator::Now(), duration.count());
+  if (m_interestDelayCallback != 0) {
+    m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
   }
 }
 
@@ -295,6 +295,8 @@ Forwarder::onInterestFinalize(shared_ptr<pit::Entry> pitEntry, bool isSatisfied,
 void
 Forwarder::onIncomingData(Face& inFace, const Data& data)
 {
+  auto start = std::chrono::high_resolution_clock::now();
+
   // receive Data
   NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() << " data=" << data.getName());
   const_cast<Data&>(data).setIncomingFaceId(inFace.getId());
@@ -306,7 +308,6 @@ Forwarder::onIncomingData(Face& inFace, const Data& data)
   if (isViolatingLocalhost) {
     NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
                   " data=" << data.getName() << " violates /localhost");
-    // (drop)
     return;
   }
 
@@ -376,6 +377,14 @@ Forwarder::onIncomingData(Face& inFace, const Data& data)
     // goto outgoing Data pipeline
     this->onOutgoingData(data, *pendingDownstream);
   }
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<float> duration = end - start;
+
+  if (m_contentDelayCallback != 0) {
+    m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+  }
+
 }
 
 void
