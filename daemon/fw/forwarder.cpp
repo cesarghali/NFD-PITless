@@ -61,6 +61,8 @@ Forwarder::~Forwarder()
 void
 Forwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 {
+  auto start = std::chrono::high_resolution_clock::now();
+
   // receive Interest
   NFD_LOG_DEBUG("onIncomingInterest face=" << inFace.getId() <<
                 " interest=" << interest.getName());
@@ -114,6 +116,13 @@ Forwarder::onIncomingInterest(Face& inFace, const Interest& interest)
   }
   else {
     this->onContentStoreMiss(inFace, pitEntry, interest);
+  }
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<float> duration = end - start;
+
+  if (m_forwardingDelayCallback != 0) {
+    m_forwardingDelayCallback(ns3::Simulator::Now(), duration.count());
   }
 }
 

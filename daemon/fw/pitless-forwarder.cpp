@@ -55,6 +55,8 @@ PITlessForwarder::~PITlessForwarder()
 void
 PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 {
+  auto start = std::chrono::high_resolution_clock::now();
+
   // receive Interest
   NFD_LOG_DEBUG("onIncomingInterest face=" << inFace.getId() <<
                 " interest=[N:" << interest.getName() <<
@@ -86,6 +88,13 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
     else {
       this->onContentStoreMiss(inFace, interest);
     }
+  }
+
+  auto end = std::chrono::high_resolution_clock::now();
+  std::chrono::duration<float> duration = end - start;
+
+  if (m_forwardingDelayCallback != 0) {
+    m_forwardingDelayCallback(ns3::Simulator::Now(), duration.count());
   }
 }
 

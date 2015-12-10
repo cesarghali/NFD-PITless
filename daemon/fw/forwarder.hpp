@@ -39,6 +39,10 @@
 
 #include "ns3/ndnSIM/model/cs/ndn-content-store.hpp"
 
+#include <chrono>
+
+typedef void (*ForwardingDelayCallback)(ns3::Time, float);
+
 namespace nfd {
 
 class PITlessForwarder;
@@ -69,6 +73,9 @@ public:
 
   const ForwarderCounters&
   getCounters() const;
+
+  void
+  setForwardingDelayCallback(size_t forwardingDelayCallback, size_t id);
 
 public: // faces
   FaceTable&
@@ -248,6 +255,10 @@ private:
 
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;
+
+public:
+  ForwardingDelayCallback m_forwardingDelayCallback;
+  size_t m_id;
 };
 
 inline shared_ptr<NullFace>
@@ -344,6 +355,13 @@ inline void
 Forwarder::setCsFromNdnSim(ns3::Ptr<ns3::ndn::ContentStore> cs)
 {
   m_csFromNdnSim = cs;
+}
+
+inline void
+Forwarder::setForwardingDelayCallback(size_t forwardingDelayCallback, size_t id)
+{
+  m_id = id;
+  m_forwardingDelayCallback = reinterpret_cast<ForwardingDelayCallback>(forwardingDelayCallback);
 }
 
 inline ns3::Ptr<ns3::ndn::ContentStore>
