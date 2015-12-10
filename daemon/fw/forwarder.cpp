@@ -51,6 +51,8 @@ Forwarder::Forwarder()
 {
   fw::installStrategies(*this);
   getFaceTable().addReserved(m_csFace, FACEID_CONTENT_STORE);
+  m_interestDelayCallback = 0; // NULL to start
+  m_contentDelayCallback = 0; // NULL to start
 }
 
 Forwarder::~Forwarder()
