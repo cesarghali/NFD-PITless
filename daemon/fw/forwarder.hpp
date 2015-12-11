@@ -244,22 +244,22 @@ private:
   NameTree       m_nameTree;
   Fib            m_fib;
   Pit            m_pit;
-  Cs             m_cs;
   Measurements   m_measurements;
   StrategyChoice m_strategyChoice;
   DeadNonceList  m_deadNonceList;
   shared_ptr<NullFace> m_csFace;
 
-  ns3::Ptr<ns3::ndn::ContentStore> m_csFromNdnSim;
 
-  static const Name LOCALHOST_NAME;
 
   // allow Strategy (base class) to enter pipelines
   friend class fw::Strategy;
 
 public:
+  static const Name LOCALHOST_NAME;
   InterestFwdDelayCallback m_interestDelayCallback;
   ContentFwdDelayCallback m_contentDelayCallback;
+  ns3::Ptr<ns3::ndn::ContentStore> m_csFromNdnSim;
+  Cs             m_cs;
   size_t m_id;
 };
 

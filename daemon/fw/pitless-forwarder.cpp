@@ -65,7 +65,7 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 
   // /localhost scope control
   bool isViolatingLocalhost = !inFace.isLocal() &&
-    Forwarder::getLOCALHOSTNAME().isPrefixOf(interest.getName());
+    LOCALHOST_NAME.isPrefixOf(interest.getName());
   if (isViolatingLocalhost) {
     NFD_LOG_DEBUG("onIncomingInterest face=" << inFace.getId() <<
                   " interest=[N:" << interest.getName() <<
@@ -75,13 +75,13 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
     return;
   }
 
-  if (Forwarder::getCsFromNdnSim() == nullptr) {
-    Forwarder::getCs().find(interest,
+  if (m_csFromNdnSim == nullptr) {
+    m_cs.find(interest,
               bind(&PITlessForwarder::onContentStoreHit, this, ref(inFace), _1, _2),
               bind(&PITlessForwarder::onContentStoreMiss, this, ref(inFace), _1));
   }
   else {
-    shared_ptr<Data> match = Forwarder::getCsFromNdnSim()->Lookup(interest.shared_from_this());
+    shared_ptr<Data> match = m_csFromNdnSim->Lookup(interest.shared_from_this());
     if (match != nullptr) {
       this->onContentStoreHit(inFace, interest, *match);
     }
@@ -217,15 +217,15 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
     return;
   }
 
+  // goto outgoing Data pipeline
+  this->onOutgoingData(data, *outFace);
+
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float> duration = end - start;
 
   if (m_contentDelayCallback != 0) {
     m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
   }
-
-  // goto outgoing Data pipeline
-  this->onOutgoingData(data, *outFace);
 }
 
 void
