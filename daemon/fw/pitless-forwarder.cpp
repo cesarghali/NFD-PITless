@@ -25,6 +25,7 @@
 
 #include "pitless-forwarder.hpp"
 #include "pitless-strategy.hpp"
+#include "pitless-best-route-strategy.hpp"
 #include "core/logger.hpp"
 #include "core/random.hpp"
 #include "strategy.hpp"
@@ -40,6 +41,7 @@ NFD_LOG_INIT("PITlessForwarder");
 
 using fw::Strategy;
 using fw::PITlessStrategy;
+using fw::PITlessBestRouteStrategy;
 
 PITlessForwarder::PITlessForwarder()
   : Forwarder()
@@ -110,7 +112,7 @@ PITlessForwarder::onContentStoreMiss(const Face& inFace,
 
   // dispatch to strategy
   // TODO(cesar): this is hard coded, find a better way.
-  Name strategyName = PITlessStrategy::STRATEGY_NAME;
+  Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
   this->dispatchToPITlessStrategy(strategyName, bind(&PITlessStrategy::afterReceiveInterestPITless, _1,
                                                     cref(inFace), cref(interest), fibEntry));
 }
@@ -124,7 +126,7 @@ PITlessForwarder::onContentStoreHit(const Face& inFace,
                 ", SN:" << interest.getSupportingName() << "]");
 
   // TODO(cesar): this is hard coded, find a better way.
-  Name strategyName = PITlessStrategy::STRATEGY_NAME;
+  Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
   this->dispatchToPITlessStrategy(strategyName, bind(&Strategy::beforeSatisfyInterest, _1,
                                                     nullptr, cref(*Forwarder::getCsFace()), cref(data)));
 

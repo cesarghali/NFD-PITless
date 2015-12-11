@@ -23,31 +23,48 @@
  * NFD, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pitless-strategy.hpp"
-#include "forwarder.hpp"
-#include "core/logger.hpp"
+#include "pitless-best-route-strategy.hpp"
 
 namespace nfd {
 namespace fw {
 
-NFD_LOG_INIT("PITlessStrategy");
+const Name PITlessBestRouteStrategy::STRATEGY_NAME("ndn:/localhost/nfd/strategy/pitless-best-route/%FD%01");
+NFD_REGISTER_PITLESS_STRATEGY(PITlessBestRouteStrategy);
 
-PITlessStrategy::PITlessStrategy(Forwarder& forwarder, const Name& name)
-  : Strategy(forwarder, name)
+PITlessBestRouteStrategy::PITlessBestRouteStrategy(Forwarder& forwarder, const Name& name)
+  : PITlessStrategy(forwarder, name)
 {
 }
 
-PITlessStrategy::~PITlessStrategy()
+PITlessBestRouteStrategy::~PITlessBestRouteStrategy()
 {
+}
+
+static inline bool
+predicate_canForwardTo_NextHop(const Face& inFace,
+                               const fib::NextHop& nexthop)
+{
+  return (inFace.getId() != nexthop.getFace()->getId());
 }
 
 void
-PITlessStrategy::afterReceiveInterest(const Face& inFace,
-                                      const Interest& interest,
-                                      shared_ptr<fib::Entry> fibEntry,
-                                      shared_ptr<pit::Entry> pitEntry)
+PITlessBestRouteStrategy::afterReceiveInterestPITless(const Face& inFace,
+                                                      const Interest& interest,
+                                                      shared_ptr<fib::Entry> fibEntry)
 {
-  return;
+  const fib::NextHopList& nexthops = fibEntry->getNextHops();
+  fib::NextHopList::const_iterator it;
+  for (it = nexthops.begin(); it != nexthops.end(); ++it) {
+    if (predicate_canForwardTo_NextHop(inFace, *it) == true)
+      break;
+  }
+
+  if (it == nexthops.end()) {
+    return;
+  }
+
+  shared_ptr<Face> outFace = it->getFace();
+  this->sendInterestPITless(interest, outFace);
 }
 
 } // namespace fw
