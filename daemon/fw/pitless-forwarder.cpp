@@ -113,22 +113,8 @@ PITlessForwarder::onContentStoreMiss(const Face& inFace,
   // dispatch to strategy
   // TODO(cesar): this is hard coded, find a better way.
   Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
-
-  /************** BEGINNING DEBUGGING *******************/
-  // THIS IS WHERE THE ERROR IS:
-  // the first cout outputs: /localhost/nfd/strategy/pitless-best-route/%FD%01
-  // then the findEffectiveStrategy function looks for a strategy with the above name
-  // but the returned strategy is one with the name: /localhost/nfd/strategy/best-route/%FD%03
-  // which is the output of the second cout.
-  // Once this error is fixed, please remove the following three lines of code along with
-  // this comment and everything should work perfectly.
-  std::cout << strategyName << std::endl;
-  fw::Strategy& strategy = Forwarder::getStrategyChoice().findEffectiveStrategy(strategyName);
-  std::cout << strategy.getName() << std::endl;
-  /************** END DEBUGGING *******************/
-
-  this->dispatchToPITlessStrategy(strategyName, bind(&PITlessStrategy::afterReceiveInterestPITless, _1,
-                                                    cref(inFace), cref(interest), fibEntry));
+  fw::Strategy* strategy = Forwarder::getStrategyChoice().getStrategy(strategyName);
+  ((fw::PITlessStrategy*)(strategy))->afterReceiveInterestPITless(cref(inFace), cref(interest), fibEntry);
 }
 
 void
@@ -141,6 +127,8 @@ PITlessForwarder::onContentStoreHit(const Face& inFace,
 
   // TODO(cesar): this is hard coded, find a better way.
   Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
+  // TODO(cesar): this will not work of our pitless strategy implements its own
+  //              beforeSatisfyInterest function, but for now it works.
   this->dispatchToPITlessStrategy(strategyName, bind(&Strategy::beforeSatisfyInterest, _1,
                                                     nullptr, cref(*Forwarder::getCsFace()), cref(data)));
 

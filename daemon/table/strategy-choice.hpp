@@ -143,13 +143,14 @@ public: // enumeration
   const_iterator
   end() const;
 
-private:
+public:
   /** \brief get Strategy instance by strategyName
    *  \param strategyName a versioned or unversioned strategyName
    */
   fw::Strategy*
   getStrategy(const Name& strategyName) const;
 
+private:
   void
   setDefaultStrategy(shared_ptr<fw::Strategy> strategy);
 
