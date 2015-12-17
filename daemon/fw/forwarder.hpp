@@ -235,14 +235,15 @@ PROTECTED_WITH_TESTS_ELSE_PRIVATE:
   dispatchToStrategy(shared_ptr<pit::Entry> pitEntry, Function trigger);
 #endif
 
-private:
+protected:
   ForwarderCounters m_counters;
+  Fib            m_fib;
 
+private:
   FaceTable m_faceTable;
 
   // tables
   NameTree       m_nameTree;
-  Fib            m_fib;
   Pit            m_pit;
   Measurements   m_measurements;
   StrategyChoice m_strategyChoice;

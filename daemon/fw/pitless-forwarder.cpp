@@ -64,6 +64,7 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
                 " interest=[N:" << interest.getName() <<
                 ", SN:" << interest.getSupportingName() << "]");
   const_cast<Interest&>(interest).setIncomingFaceId(inFace.getId());
+  ++m_counters.getNInInterests();
 
   // /localhost scope control
   bool isViolatingLocalhost = !inFace.isLocal() &&
@@ -74,6 +75,12 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
                   ", SN:" << interest.getSupportingName() <<
                   "] violates /localhost");
     // (drop)
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 
@@ -156,16 +163,23 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
                 " data=[N:" << data.getName() <<
                 ", SN:" << data.getSupportingName() << "]");
   const_cast<Data&>(data).setIncomingFaceId(inFace.getId());
+  ++m_counters.getNInDatas();
 
   // /localhost scope control
   bool isViolatingLocalhost = !inFace.isLocal() &&
-    Forwarder::getLOCALHOSTNAME().isPrefixOf(Name(data.getSupportingName()));
+    LOCALHOST_NAME.isPrefixOf(Name(data.getSupportingName()));
   if (isViolatingLocalhost) {
     NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
                   " data=[N:" << data.getName() <<
                   ", SN:" << data.getSupportingName() <<
                   "] violates /localhost");
     // (drop)
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 
@@ -180,12 +194,12 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
 
   // CS insert
   if (Forwarder::getCsFromNdnSim() == nullptr)
-    Forwarder::getCs().insert(*dataCopyWithoutPacket);
+    m_cs.insert(*dataCopyWithoutPacket);
   else
-    Forwarder::getCsFromNdnSim()->Add(dataCopyWithoutPacket);
+    m_csFromNdnSim->Add(dataCopyWithoutPacket);
 
   // FIB lookup
-  shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(data.getName());
+  shared_ptr<fib::Entry> fibEntry = m_fib.findLongestPrefixMatch(data.getName());
 
   const fib::NextHopList& nexthops = fibEntry->getNextHops();
   fib::NextHopList::const_iterator it;
@@ -200,24 +214,23 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
                   ", SN:" << data.getSupportingName() <<
                   "] no out face to forward on");
 
-      auto end = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<float> duration = end - start;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
 
-      if (m_contentDelayCallback != 0) {
-        m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
-      }
-
+    if (m_contentDelayCallback != 0) {
+      m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 
   shared_ptr<Face> outFace = it->getFace();
   if (outFace.get() == &inFace) {
-      auto end = std::chrono::high_resolution_clock::now();
-      std::chrono::duration<float> duration = end - start;
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
 
-      if (m_contentDelayCallback != 0) {
-        m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
-      }
+    if (m_contentDelayCallback != 0) {
+      m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 

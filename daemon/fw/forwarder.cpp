@@ -78,6 +78,12 @@ Forwarder::onIncomingInterest(Face& inFace, const Interest& interest)
     NFD_LOG_DEBUG("onIncomingInterest face=" << inFace.getId() <<
                   " interest=" << interest.getName() << " violates /localhost");
     // (drop)
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 
@@ -91,6 +97,12 @@ Forwarder::onIncomingInterest(Face& inFace, const Interest& interest)
   if (hasDuplicateNonce) {
     // goto Interest loop pipeline
     this->onInterestLoop(inFace, interest, pitEntry);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 
@@ -310,6 +322,12 @@ Forwarder::onIncomingData(Face& inFace, const Data& data)
   if (isViolatingLocalhost) {
     NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
                   " data=" << data.getName() << " violates /localhost");
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 
@@ -318,6 +336,12 @@ Forwarder::onIncomingData(Face& inFace, const Data& data)
   if (pitMatches.begin() == pitMatches.end()) {
     // goto Data unsolicited pipeline
     this->onDataUnsolicited(inFace, data);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
     return;
   }
 
@@ -386,7 +410,6 @@ Forwarder::onIncomingData(Face& inFace, const Data& data)
   if (m_contentDelayCallback != 0) {
     m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
   }
-
 }
 
 void
