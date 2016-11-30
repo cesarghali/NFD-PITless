@@ -29,6 +29,7 @@
 #include "common.hpp"
 
 #include "ns3/ndnSIM/NFD/daemon/fw/pitless-forwarder.hpp"
+#include "ns3/ndnSIM/NFD/daemon/fw/bridge-forwarder.hpp"
 
 namespace nfd {
 
@@ -47,16 +48,24 @@ installStrategies(Forwarder& forwarder);
 void
 installPITlessStrategies(PITlessForwarder& pitlessForwarder);
 
+void
+installBridgeStrategies(BridgeForwarder& bridgeForwarder);
+
 
 typedef std::function<shared_ptr<Strategy>(Forwarder&)> StrategyCreateFunc;
 
 typedef std::function<shared_ptr<Strategy>(PITlessForwarder&)> PITlessStrategyCreateFunc;
+
+typedef std::function<shared_ptr<Strategy>(BridgeForwarder&)> BridgeStrategyCreateFunc;
 
 void
 registerStrategyImpl(const Name& strategyName, const StrategyCreateFunc& createFunc);
 
 void
 registerPITlessStrategyImpl(const Name& strategyName, const PITlessStrategyCreateFunc& createFunc);
+
+void
+registerBridgeStrategyImpl(const Name& strategyName, const BridgeStrategyCreateFunc& createFunc);
 
 /** \brief registers a strategy to be installed later
  */
@@ -76,6 +85,16 @@ registerPITlessStrategy()
 {
   registerPITlessStrategyImpl(S::STRATEGY_NAME,
                               [] (PITlessForwarder& pitlessForwarder) { return make_shared<S>(ref(pitlessForwarder)); });
+}
+
+/** \brief registers a strategy to be installed later
+ */
+template<typename S>
+void
+registerBridgeStrategy()
+{
+  registerBridgeStrategyImpl(S::STRATEGY_NAME,
+                              [] (BridgeForwarder& bridgeForwarder) { return make_shared<S>(ref(bridgeForwarder)); });
 }
 
 /** \brief registers a built-in strategy
@@ -105,6 +124,20 @@ public:                                                                         
     ::nfd::fw::registerPITlessStrategy<StrategyType>();                         \
   }                                                                             \
 } g_nfdAuto ## PITlessStrategyType ## PITlessStrategyRegistrationVariable
+
+/** \brief registers a built-in Bridge strategy
+ *
+ *  This macro should appear once in .cpp of each built-in Bridge strategy.
+ */
+#define NFD_REGISTER_BRIDGE_STRATEGY(StrategyType)                             \
+static class NfdAuto ## BridgeStrategyType ## BridgeStrategyRegistrationClass \
+{                                                                               \
+public:                                                                         \
+  NfdAuto ## BridgeStrategyType ## BridgeStrategyRegistrationClass()          \
+  {                                                                             \
+    ::nfd::fw::registerBridgeStrategy<StrategyType>();                         \
+  }                                                                             \
+} g_nfdAuto ## BridgeStrategyType ## BridgeStrategyRegistrationVariable
 
 } // namespace fw
 } // namespace nfd

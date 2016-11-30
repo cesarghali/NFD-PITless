@@ -142,7 +142,7 @@ public:
    */
   signal::Signal<Forwarder, pit::Entry> beforeExpirePendingInterest;
 
-PUBLIC_WITH_TESTS_ELSE_PRIVATE: // pipelines
+public: // pipelines
   /** \brief incoming Interest pipeline
    */
   VIRTUAL_WITH_TESTS void
@@ -205,7 +205,7 @@ protected:
   VIRTUAL_WITH_TESTS void
   onOutgoingData(const Data& data, Face& outFace);
 
-PROTECTED_WITH_TESTS_ELSE_PRIVATE:
+protected:
   VIRTUAL_WITH_TESTS void
   setUnsatisfyTimer(shared_ptr<pit::Entry> pitEntry);
 
@@ -239,7 +239,7 @@ protected:
   ForwarderCounters m_counters;
   Fib            m_fib;
 
-private:
+protected:
   FaceTable m_faceTable;
 
   // tables

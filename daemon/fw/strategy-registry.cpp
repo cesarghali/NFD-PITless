@@ -49,6 +49,13 @@ getPITlessStrategyFactories()
   return pitlessStrategyFactories;
 }
 
+static std::map<Name, BridgeStrategyCreateFunc>&
+getBridgeStrategyFactories()
+{
+  static std::map<Name, BridgeStrategyCreateFunc> bridgeStrategyFactories;
+  return bridgeStrategyFactories;
+}
+
 void
 registerStrategyImpl(const Name& strategyName, const StrategyCreateFunc& createFunc)
 {
@@ -59,6 +66,12 @@ void
 registerPITlessStrategyImpl(const Name& strategyName, const PITlessStrategyCreateFunc& createFunc)
 {
   getPITlessStrategyFactories().insert({strategyName, createFunc});
+}
+
+void
+registerBridgeStrategyImpl(const Name& strategyName, const BridgeStrategyCreateFunc& createFunc)
+{
+  getBridgeStrategyFactories().insert({strategyName, createFunc});
 }
 
 void
@@ -82,6 +95,18 @@ installPITlessStrategies(PITlessForwarder& pitlessForwarder)
     }
   }
 }
+
+void
+installBridgeStrategies(BridgeForwarder& bridgeForwarder)
+{
+  StrategyChoice& sc = bridgeForwarder.getStrategyChoice();
+  for (const auto& pair : getBridgeStrategyFactories()) {
+    if (!sc.hasStrategy(pair.first, true)) {
+      sc.install(pair.second(bridgeForwarder));
+    }
+  }
+}
+
 
 } // namespace fw
 } // namespace nfd

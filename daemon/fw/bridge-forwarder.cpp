@@ -23,7 +23,7 @@
  * NFD, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "pitless-forwarder.hpp"
+#include "bridge-forwarder.hpp"
 #include "pitless-strategy.hpp"
 #include "pitless-best-route-strategy.hpp"
 #include "core/logger.hpp"
@@ -37,26 +37,26 @@
 
 namespace nfd {
 
-// NFD_LOG_INIT("PITlessForwarder");
-NS_LOG_COMPONENT_DEFINE("ndn.PITlessForwarder");
+// NFD_LOG_INIT("BridgeForwarder");
+NS_LOG_COMPONENT_DEFINE("ndn.BridgeForwarder");
 
 using fw::Strategy;
 using fw::PITlessStrategy;
 using fw::PITlessBestRouteStrategy;
 
-PITlessForwarder::PITlessForwarder()
+BridgeForwarder::BridgeForwarder()
   : Forwarder()
 {
-  fw::installPITlessStrategies(*this);
+  fw::installBridgeStrategies(*this);
 }
 
-PITlessForwarder::~PITlessForwarder()
+BridgeForwarder::~BridgeForwarder()
 {
 
 }
 
 void
-PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
+BridgeForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 {
   auto start = std::chrono::high_resolution_clock::now();
 
@@ -87,8 +87,8 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 
   if (m_csFromNdnSim == nullptr) {
     m_cs.find(interest,
-              bind(&PITlessForwarder::onContentStoreHit, this, ref(inFace), _1, _2),
-              bind(&PITlessForwarder::onContentStoreMiss, this, ref(inFace), _1));
+              bind(&BridgeForwarder::onContentStoreHit, this, ref(inFace), _1, _2),
+              bind(&BridgeForwarder::onContentStoreMiss, this, ref(inFace), _1));
   }
   else {
     shared_ptr<Data> match = m_csFromNdnSim->Lookup(interest.shared_from_this());
@@ -109,7 +109,7 @@ PITlessForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 }
 
 void
-PITlessForwarder::onContentStoreMiss(const Face& inFace,
+BridgeForwarder::onContentStoreMiss(const Face& inFace,
                                      const Interest& interest)
 {
   NFD_LOG_DEBUG("onContentStoreMiss interest=[N:" << interest.getName() <<
@@ -126,7 +126,7 @@ PITlessForwarder::onContentStoreMiss(const Face& inFace,
 }
 
 void
-PITlessForwarder::onContentStoreHit(const Face& inFace,
+BridgeForwarder::onContentStoreHit(const Face& inFace,
                                     const Interest& interest,
                                     const Data& data)
 {
@@ -135,7 +135,7 @@ PITlessForwarder::onContentStoreHit(const Face& inFace,
 
   // TODO(cesar): this is hard coded, find a better way.
   Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
-  // TODO(cesar): this will not work of our pitless strategy implements its own
+  // TODO(cesar): this will not work of our bridge strategy implements its own
   //              beforeSatisfyInterest function, but for now it works.
   this->dispatchToPITlessStrategy(strategyName, bind(&Strategy::beforeSatisfyInterest, _1,
                                                     nullptr, cref(*Forwarder::getCsFace()), cref(data)));
@@ -155,7 +155,7 @@ predicate_canForwardTo_NextHop(const Face& inFace,
 }
 
 void
-PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
+BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
 {
   auto start = std::chrono::high_resolution_clock::now();
 
@@ -247,7 +247,7 @@ PITlessForwarder::onIncomingData(Face& inFace, const Data& data)
 }
 
 void
-PITlessForwarder::onOutgoingInterestPITless(const Interest& interest, Face& outFace,
+BridgeForwarder::onOutgoingInterestPITless(const Interest& interest, Face& outFace,
                                             bool wantNewNonce)
 {
   if (outFace.getId() == INVALID_FACEID) {
