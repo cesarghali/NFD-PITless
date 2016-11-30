@@ -45,7 +45,7 @@ class NullFace;
 class BridgeForwarder : public Forwarder
 {
 public:
-  BridgeForwarder();
+  BridgeForwarder(std::string supportingName);
 
   VIRTUAL_WITH_TESTS
   ~BridgeForwarder();
@@ -71,7 +71,7 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE: // pipelines
   /** \brief Content Store miss pipeline
   */
   void
-  onContentStoreMiss(const Face& inFace, const Interest& interest);
+  onContentStoreMiss(const Face& inFace, shared_ptr<pit::Entry> pitEntry, const Interest& interest);
 
   /** \brief Content Store hit pipeline
   */
@@ -85,6 +85,14 @@ public:
   void
   onOutgoingInterestPITless(const Interest& interest, Face& outFace,
                             bool wantNewNonce = false);
+
+
+  std::string m_Name;
+
+  inline void
+  setSupportingName(std::string name) {
+    m_Name = name;
+  }
 
   /// call trigger (method) on the effective strategy of pitEntry
 #ifdef WITH_TESTS

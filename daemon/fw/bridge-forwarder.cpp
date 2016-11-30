@@ -44,10 +44,11 @@ using fw::Strategy;
 using fw::PITlessStrategy;
 using fw::PITlessBestRouteStrategy;
 
-BridgeForwarder::BridgeForwarder()
+BridgeForwarder::BridgeForwarder(std::string supportingName)
   : Forwarder()
 {
   fw::installBridgeStrategies(*this);
+  m_Name = supportingName;
 }
 
 BridgeForwarder::~BridgeForwarder()
@@ -85,19 +86,48 @@ BridgeForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
     return;
   }
 
-  if (m_csFromNdnSim == nullptr) {
-    m_cs.find(interest,
-              bind(&BridgeForwarder::onContentStoreHit, this, ref(inFace), _1, _2),
-              bind(&BridgeForwarder::onContentStoreMiss, this, ref(inFace), _1));
+  // PIT insert
+  shared_ptr<pit::Entry> pitEntry = m_pit.insert(interest).first;
+
+  // detect duplicate Nonce
+  int dnw = pitEntry->findNonce(interest.getNonce(), inFace);
+  bool hasDuplicateNonce = (dnw != pit::DUPLICATE_NONCE_NONE) ||
+                           m_deadNonceList.has(interest.getName(), interest.getNonce());
+  if (hasDuplicateNonce) {
+    // goto Interest loop pipeline
+    this->onInterestLoop(inFace, interest, pitEntry);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
+    return;
   }
-  else {
-    shared_ptr<Data> match = m_csFromNdnSim->Lookup(interest.shared_from_this());
-    if (match != nullptr) {
-      this->onContentStoreHit(inFace, interest, *match);
+
+  // cancel unsatisfy & straggler timer
+  this->cancelUnsatisfyAndStragglerTimer(pitEntry);
+
+  // is pending?
+  const pit::InRecordCollection& inRecords = pitEntry->getInRecords();
+  bool isPending = inRecords.begin() != inRecords.end();
+  if (!isPending) {
+    if (m_csFromNdnSim == nullptr) {
+      m_cs.find(interest,
+                bind(&BridgeForwarder::onContentStoreHit, this, ref(inFace), _1, _2),
+                bind(&BridgeForwarder::onContentStoreMiss, this, ref(inFace), pitEntry, _1));
     }
     else {
-      this->onContentStoreMiss(inFace, interest);
+      shared_ptr<Data> match = m_csFromNdnSim->Lookup(interest.shared_from_this());
+      if (match != nullptr) {
+        this->onContentStoreHit(inFace, interest, *match);
+      }
+      else {
+        this->onContentStoreMiss(inFace, NULL, interest);
+      }
     }
+  } else {
+    this->onContentStoreMiss(inFace, pitEntry, interest);
   }
 
   auto end = std::chrono::high_resolution_clock::now();
@@ -110,19 +140,32 @@ BridgeForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
 
 void
 BridgeForwarder::onContentStoreMiss(const Face& inFace,
-                                     const Interest& interest)
+                                    shared_ptr<pit::Entry> pitEntry,
+                                    const Interest& interest)
 {
   NFD_LOG_DEBUG("onContentStoreMiss interest=[N:" << interest.getName() <<
                 ", SN:" << interest.getSupportingName() << "]");
 
+  // insert InRecord
+  if (pitEntry != NULL) {
+    shared_ptr<Face> face = const_pointer_cast<Face>(inFace.shared_from_this());
+    pitEntry->insertOrUpdateInRecord(face, interest);
+
+    // set PIT unsatisfy timer
+    this->setUnsatisfyTimer(pitEntry);
+  }
+
   // FIB lookup
   shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(interest.getName());
+
+  // We need to set the supporting name here...
+  Interest newInterest(interest.getName(), m_Name);
 
   // dispatch to strategy
   // TODO(cesar): this is hard coded, find a better way.
   Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
   fw::Strategy* strategy = Forwarder::getStrategyChoice().getStrategy(strategyName);
-  ((fw::PITlessStrategy*)(strategy))->afterReceiveInterestPITless(cref(inFace), cref(interest), fibEntry);
+  ((fw::PITlessStrategy*)(strategy))->afterReceiveInterestPITless(cref(inFace), cref(newInterest), fibEntry);
 }
 
 void
@@ -200,6 +243,7 @@ BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
     m_csFromNdnSim->Add(dataCopyWithoutPacket);
 
   // FIB lookup
+  std::cout << "forwarding " << data.getName() << std::endl;
   shared_ptr<fib::Entry> fibEntry = m_fib.findLongestPrefixMatch(data.getName());
 
   const fib::NextHopList& nexthops = fibEntry->getNextHops();
