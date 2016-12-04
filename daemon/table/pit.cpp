@@ -104,6 +104,27 @@ Pit::findAllDataMatches(const Data& data) const
   return matches;
 }
 
+/** \brief performs a Data match
+ *  \return an iterable of all PIT entries matching data
+ */
+pit::DataMatchResult
+Pit::findAllDataMatchesByName(const Name& name)
+{
+  auto&& ntMatches = m_nameTree.findAllMatches(name,
+    [] (const name_tree::Entry& entry) { return entry.hasPitEntries(); });
+
+  pit::DataMatchResult matches;
+  for (const name_tree::Entry& nte : ntMatches) {
+    for (const shared_ptr<pit::Entry>& pitEntry : nte.getPitEntries()) {
+      if (pitEntry->getInterest().getName().equals(name)) {
+        matches.emplace_back(pitEntry);
+      }
+    }
+  }
+
+  return matches;
+}
+
 void
 Pit::erase(shared_ptr<pit::Entry> pitEntry)
 {

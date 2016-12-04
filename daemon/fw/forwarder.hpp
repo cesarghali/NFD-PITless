@@ -47,6 +47,7 @@ typedef void (*ContentFwdDelayCallback)(int id, ns3::Time, float);
 namespace nfd {
 
 class PITlessForwarder;
+class BridgeForwarder;
 
 namespace fw {
 class Strategy;
@@ -94,7 +95,7 @@ public: // faces
    *  shortcut to .getFaceTable().add(face)
    */
   void
-  addFace(shared_ptr<Face> face, bool isPITless = false);
+  addFace(shared_ptr<Face> face, bool isPITless = false, bool isBridge = false);
 
 public: // forwarding entrypoints and tables
   void
@@ -295,9 +296,9 @@ Forwarder::getFace(FaceId id) const
 }
 
 inline void
-Forwarder::addFace(shared_ptr<Face> face, bool isPITless)
+Forwarder::addFace(shared_ptr<Face> face, bool isPITless, bool isBridge)
 {
-  m_faceTable.add(face, isPITless);
+  m_faceTable.add(face, isPITless, isBridge);
 }
 
 inline void

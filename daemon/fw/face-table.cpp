@@ -26,6 +26,7 @@
 #include "face-table.hpp"
 #include "forwarder.hpp"
 #include "pitless-forwarder.hpp"
+#include "bridge-forwarder.hpp"
 #include "core/logger.hpp"
 
 namespace nfd {
@@ -57,7 +58,7 @@ FaceTable::size() const
 }
 
 void
-FaceTable::add(shared_ptr<Face> face, bool isPITless)
+FaceTable::add(shared_ptr<Face> face, bool isPITless, bool isBridge)
 {
   if (face->getId() != INVALID_FACEID && m_faces.count(face->getId()) > 0) {
     NFD_LOG_WARN("Trying to add existing face id=" << face->getId() << " to the face table");
@@ -66,7 +67,7 @@ FaceTable::add(shared_ptr<Face> face, bool isPITless)
 
   FaceId faceId = ++m_lastFaceId;
   BOOST_ASSERT(faceId > FACEID_RESERVED_MAX);
-  this->addImpl(face, faceId, isPITless);
+  this->addImpl(face, faceId, isPITless, isBridge);
 }
 
 void
@@ -79,19 +80,22 @@ FaceTable::addReserved(shared_ptr<Face> face, FaceId faceId)
 }
 
 void
-FaceTable::addImpl(shared_ptr<Face> face, FaceId faceId, bool isPITless)
+FaceTable::addImpl(shared_ptr<Face> face, FaceId faceId, bool isPITless, bool isBridge)
 {
   face->setId(faceId);
   m_faces[faceId] = face;
   NFD_LOG_INFO("Added face id=" << faceId << " remote=" << face->getRemoteUri()
                                           << " local=" << face->getLocalUri());
 
-  if (!isPITless) {
-    face->onReceiveInterest.connect(bind(&Forwarder::onInterest, &m_forwarder, ref(*face), _1));
-    face->onReceiveData.connect(bind(&Forwarder::onData, &m_forwarder, ref(*face), _1));
-  } else {
+  if (isPITless) {
     face->onReceiveInterest.connect(bind(&PITlessForwarder::onInterest, dynamic_cast<PITlessForwarder*>(&m_forwarder), ref(*face), _1));
     face->onReceiveData.connect(bind(&PITlessForwarder::onData, dynamic_cast<PITlessForwarder*>(&m_forwarder), ref(*face), _1));
+  } else if (isBridge) {
+    face->onReceiveInterest.connect(bind(&BridgeForwarder::onInterest, dynamic_cast<BridgeForwarder*>(&m_forwarder), ref(*face), _1));
+    face->onReceiveData.connect(bind(&BridgeForwarder::onData, dynamic_cast<BridgeForwarder*>(&m_forwarder), ref(*face), _1));
+  } else {
+    face->onReceiveInterest.connect(bind(&Forwarder::onInterest, &m_forwarder, ref(*face), _1));
+    face->onReceiveData.connect(bind(&Forwarder::onData, &m_forwarder, ref(*face), _1));
   }
   face->onFail.connectSingleShot(bind(&FaceTable::remove, this, face, _1));
 

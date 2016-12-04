@@ -23,61 +23,32 @@
  * NFD, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "strategy.hpp"
+#include "bridge-strategy.hpp"
 #include "forwarder.hpp"
 #include "core/logger.hpp"
 
 namespace nfd {
 namespace fw {
 
-NFD_LOG_INIT("Strategy");
+NFD_LOG_INIT("BridgeStrategy");
 
-Strategy::Strategy(Forwarder& forwarder, const Name& name)
-  : afterAddFace(forwarder.getFaceTable().onAdd)
-  , beforeRemoveFace(forwarder.getFaceTable().onRemove)
-  , m_name(name)
-  , m_forwarder(forwarder)
-  , m_measurements(m_forwarder.getMeasurements(),
-                   m_forwarder.getStrategyChoice(), *this)
+BridgeStrategy::BridgeStrategy(Forwarder& forwarder, const Name& name)
+  : Strategy(forwarder, name)
 {
 }
 
-Strategy::~Strategy()
+BridgeStrategy::~BridgeStrategy()
 {
 }
 
 void
-Strategy::beforeSatisfyInterest(shared_ptr<pit::Entry> pitEntry,
-                                const Face& inFace, const Data& data)
+BridgeStrategy::afterReceiveInterest(const Face& inFace,
+                                      const Interest& interest,
+                                      shared_ptr<fib::Entry> fibEntry,
+                                      shared_ptr<pit::Entry> pitEntry)
 {
-  NFD_LOG_DEBUG("beforeSatisfyInterest pitEntry=" <<
-                (pitEntry == nullptr ? "" : pitEntry->getName()) <<
-                " inFace=" << inFace.getId() << " data=" << data.getName());
+  return;
 }
-
-void
-Strategy::beforeExpirePendingInterest(shared_ptr<pit::Entry> pitEntry)
-{
-  NFD_LOG_DEBUG("beforeExpirePendingInterest pitEntry=" << pitEntry->getName());
-}
-
-//void
-//Strategy::afterAddFibEntry(shared_ptr<fib::Entry> fibEntry)
-//{
-//  NFD_LOG_DEBUG("afterAddFibEntry fibEntry=" << fibEntry->getPrefix());
-//}
-//
-//void
-//Strategy::afterUpdateFibEntry(shared_ptr<fib::Entry> fibEntry)
-//{
-//  NFD_LOG_DEBUG("afterUpdateFibEntry fibEntry=" << fibEntry->getPrefix());
-//}
-//
-//void
-//Strategy::beforeRemoveFibEntry(shared_ptr<fib::Entry> fibEntry)
-//{
-//  NFD_LOG_DEBUG("beforeRemoveFibEntry fibEntry=" << fibEntry->getPrefix());
-//}
 
 } // namespace fw
 } // namespace nfd

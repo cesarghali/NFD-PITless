@@ -72,6 +72,12 @@ public:
   pit::DataMatchResult
   findAllDataMatches(const Data& data) const;
 
+  /** \brief performs a Data match
+   *  \return an iterable of all PIT entries matching data
+   */
+  pit::DataMatchResult
+  findAllDataMatchesByName(const Name& name);
+
   /**
    *  \brief erases a PIT Entry
    */

@@ -24,8 +24,8 @@
  */
 
 #include "bridge-forwarder.hpp"
-#include "pitless-strategy.hpp"
-#include "pitless-best-route-strategy.hpp"
+#include "bridge-strategy.hpp"
+#include "bridge-best-route-strategy.hpp"
 #include "core/logger.hpp"
 #include "core/random.hpp"
 #include "strategy.hpp"
@@ -41,8 +41,8 @@ namespace nfd {
 NS_LOG_COMPONENT_DEFINE("ndn.BridgeForwarder");
 
 using fw::Strategy;
-using fw::PITlessStrategy;
-using fw::PITlessBestRouteStrategy;
+using fw::BridgeStrategy;
+using fw::BridgeBestRouteStrategy;
 
 BridgeForwarder::BridgeForwarder(std::string supportingName)
   : Forwarder()
@@ -67,6 +67,8 @@ BridgeForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
                 ", SN:" << interest.getSupportingName() << "]");
   const_cast<Interest&>(interest).setIncomingFaceId(inFace.getId());
   ++m_counters.getNInInterests();
+
+  std::cout << "BridgeForwarder::onIncomingInterest " << interest.getName() << std::endl;
 
   // /localhost scope control
   bool isViolatingLocalhost = !inFace.isLocal() &&
@@ -123,7 +125,7 @@ BridgeForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
         this->onContentStoreHit(inFace, interest, *match);
       }
       else {
-        this->onContentStoreMiss(inFace, NULL, interest);
+        this->onContentStoreMiss(inFace, pitEntry, interest);
       }
     }
   } else {
@@ -159,13 +161,14 @@ BridgeForwarder::onContentStoreMiss(const Face& inFace,
   shared_ptr<fib::Entry> fibEntry = Forwarder::getFib().findLongestPrefixMatch(interest.getName());
 
   // We need to set the supporting name here...
-  Interest newInterest(interest.getName(), m_Name);
+  // Interest newInterest(interest.getName(), m_Name);
+  const_cast<Interest&>(interest).setSupportingName(m_Name);
 
   // dispatch to strategy
   // TODO(cesar): this is hard coded, find a better way.
-  Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
+  Name strategyName = BridgeBestRouteStrategy::STRATEGY_NAME;
   fw::Strategy* strategy = Forwarder::getStrategyChoice().getStrategy(strategyName);
-  ((fw::PITlessStrategy*)(strategy))->afterReceiveInterestPITless(cref(inFace), cref(newInterest), fibEntry);
+  ((fw::BridgeStrategy*)(strategy))->afterReceiveInterestBridge(cref(inFace), cref(interest), fibEntry);
 }
 
 void
@@ -177,10 +180,10 @@ BridgeForwarder::onContentStoreHit(const Face& inFace,
                 ", SN:" << interest.getSupportingName() << "]");
 
   // TODO(cesar): this is hard coded, find a better way.
-  Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
+  Name strategyName = BridgeBestRouteStrategy::STRATEGY_NAME;
   // TODO(cesar): this will not work of our bridge strategy implements its own
   //              beforeSatisfyInterest function, but for now it works.
-  this->dispatchToPITlessStrategy(strategyName, bind(&Strategy::beforeSatisfyInterest, _1,
+  this->dispatchToBridgeStrategy(strategyName, bind(&Strategy::beforeSatisfyInterest, _1,
                                                     nullptr, cref(*Forwarder::getCsFace()), cref(data)));
 
   const_pointer_cast<Data>(data.shared_from_this())->setIncomingFaceId(FACEID_CONTENT_STORE);
@@ -227,6 +230,27 @@ BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
     return;
   }
 
+  std::cout << "BridgeForwarder::onIncomingData " << data.getName() << std::endl;
+
+  // PIT match
+  pit::DataMatchResult pitMatches = m_pit.findAllDataMatchesByName(data.getSupportingName());
+  if (pitMatches.begin() == pitMatches.end()) {
+    // goto Data unsolicited pipeline
+    this->onDataUnsolicited(inFace, data);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = end - start;
+
+    if (m_interestDelayCallback != 0) {
+      m_interestDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    }
+    return;
+  }
+
+  // Reset the name so its forwarded downstream correctly
+  // The supporting name carries the name of the original interest, which is
+  // what is used to route downstream.
+  const_cast<Data&>(data).setName(data.getSupportingName());
+
   // Remove Ptr<Packet> from the Data before inserting into cache, serving two purposes
   // - reduce amount of memory used by cached entries
   // - remove all tags that (e.g., hop count tag) that could have been associated with Ptr<Packet>
@@ -237,50 +261,113 @@ BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
   dataCopyWithoutPacket->removeTag<ns3::ndn::Ns3PacketTag>();
 
   // CS insert
-  if (Forwarder::getCsFromNdnSim() == nullptr)
+  if (m_csFromNdnSim == nullptr)
     m_cs.insert(*dataCopyWithoutPacket);
   else
     m_csFromNdnSim->Add(dataCopyWithoutPacket);
 
-  // FIB lookup
-  std::cout << "forwarding " << data.getName() << std::endl;
-  shared_ptr<fib::Entry> fibEntry = m_fib.findLongestPrefixMatch(data.getName());
+  std::set<shared_ptr<Face> > pendingDownstreams;
+  // foreach PitEntry
+  for (const shared_ptr<pit::Entry>& pitEntry : pitMatches) {
+    NFD_LOG_DEBUG("onIncomingData matching=" << pitEntry->getName());
 
-  const fib::NextHopList& nexthops = fibEntry->getNextHops();
-  fib::NextHopList::const_iterator it;
-  for (it = nexthops.begin(); it != nexthops.end(); ++it) {
-    if (predicate_canForwardTo_NextHop(inFace, *it) == true)
-      break;
-  }
+    // cancel unsatisfy & straggler timer
+    this->cancelUnsatisfyAndStragglerTimer(pitEntry);
 
-  if (it == nexthops.end()) {
-    NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
-                  " data=[N:" << data.getName() <<
-                  ", SN:" << data.getSupportingName() <<
-                  "] no out face to forward on");
-
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> duration = end - start;
-
-    if (m_contentDelayCallback != 0) {
-      m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+    // remember pending downstreams
+    const pit::InRecordCollection& inRecords = pitEntry->getInRecords();
+    for (pit::InRecordCollection::const_iterator it = inRecords.begin();
+                                                 it != inRecords.end(); ++it) {
+      if (it->getExpiry() > time::steady_clock::now()) {
+        pendingDownstreams.insert(it->getFace());
+      }
     }
-    return;
+
+    // invoke PIT satisfy callback
+    // beforeSatisfyInterest(*pitEntry, inFace, data);
+    this->dispatchToStrategy(pitEntry, bind(&Strategy::beforeSatisfyInterest, _1,
+                                            pitEntry, cref(inFace), cref(data)));
+
+    // Dead Nonce List insert if necessary (for OutRecord of inFace)
+    this->insertDeadNonceList(*pitEntry, true, data.getFreshnessPeriod(), &inFace);
+
+    // mark PIT satisfied
+    pitEntry->deleteInRecords();
+    pitEntry->deleteOutRecord(inFace);
+
+    // set PIT straggler timer
+    this->setStragglerTimer(pitEntry, true, data.getFreshnessPeriod());
   }
 
-  shared_ptr<Face> outFace = it->getFace();
-  if (outFace.get() == &inFace) {
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<float> duration = end - start;
-
-    if (m_contentDelayCallback != 0) {
-      m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+  // foreach pending downstream
+  for (std::set<shared_ptr<Face> >::iterator it = pendingDownstreams.begin();
+      it != pendingDownstreams.end(); ++it) {
+    shared_ptr<Face> pendingDownstream = *it;
+    if (pendingDownstream.get() == &inFace) {
+      continue;
     }
-    return;
+    // goto outgoing Data pipeline
+    this->onOutgoingData(data, *pendingDownstream);
   }
 
-  // goto outgoing Data pipeline
-  this->onOutgoingData(data, *outFace);
+
+
+
+
+  // // Remove Ptr<Packet> from the Data before inserting into cache, serving two purposes
+  // // - reduce amount of memory used by cached entries
+  // // - remove all tags that (e.g., hop count tag) that could have been associated with Ptr<Packet>
+  // //
+  // // Copying of Data is relatively cheap operation, as it copies (mostly) a collection of Blocks
+  // // pointing to the same underlying memory buffer.
+  // shared_ptr<Data> dataCopyWithoutPacket = make_shared<Data>(data);
+  // dataCopyWithoutPacket->removeTag<ns3::ndn::Ns3PacketTag>();
+  //
+  // // CS insert
+  // if (Forwarder::getCsFromNdnSim() == nullptr)
+  //   m_cs.insert(*dataCopyWithoutPacket);
+  // else
+  //   m_csFromNdnSim->Add(dataCopyWithoutPacket);
+  //
+  // // FIB lookup
+  // std::cout << "forwarding " << data.getName() << std::endl;
+  // shared_ptr<fib::Entry> fibEntry = m_fib.findLongestPrefixMatch(data.getName());
+  //
+  // const fib::NextHopList& nexthops = fibEntry->getNextHops();
+  // fib::NextHopList::const_iterator it;
+  // for (it = nexthops.begin(); it != nexthops.end(); ++it) {
+  //   if (predicate_canForwardTo_NextHop(inFace, *it) == true)
+  //     break;
+  // }
+  //
+  // if (it == nexthops.end()) {
+  //   NFD_LOG_DEBUG("onIncomingData face=" << inFace.getId() <<
+  //                 " data=[N:" << data.getName() <<
+  //                 ", SN:" << data.getSupportingName() <<
+  //                 "] no out face to forward on");
+  //
+  //   auto end = std::chrono::high_resolution_clock::now();
+  //   std::chrono::duration<float> duration = end - start;
+  //
+  //   if (m_contentDelayCallback != 0) {
+  //     m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+  //   }
+  //   return;
+  // }
+  //
+  // shared_ptr<Face> outFace = it->getFace();
+  // if (outFace.get() == &inFace) {
+  //   auto end = std::chrono::high_resolution_clock::now();
+  //   std::chrono::duration<float> duration = end - start;
+  //
+  //   if (m_contentDelayCallback != 0) {
+  //     m_contentDelayCallback(m_id, ns3::Simulator::Now(), duration.count());
+  //   }
+  //   return;
+  // }
+  //
+  // // goto outgoing Data pipeline
+  // this->onOutgoingData(data, *outFace);
 
   auto end = std::chrono::high_resolution_clock::now();
   std::chrono::duration<float> duration = end - start;
@@ -291,7 +378,7 @@ BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
 }
 
 void
-BridgeForwarder::onOutgoingInterestPITless(const Interest& interest, Face& outFace,
+BridgeForwarder::onOutgoingInterestBridge(const Interest& interest, Face& outFace,
                                             bool wantNewNonce)
 {
   if (outFace.getId() == INVALID_FACEID) {

@@ -32,7 +32,7 @@
 namespace nfd {
 
 namespace fw {
-class PITlessStrategy;
+class BridgeStrategy;
 class Strategy;
 } // namespace fw
 
@@ -83,7 +83,7 @@ public:
   /** \brief outgoing Interest pipeline
    */
   void
-  onOutgoingInterestPITless(const Interest& interest, Face& outFace,
+  onOutgoingInterestBridge(const Interest& interest, Face& outFace,
                             bool wantNewNonce = false);
 
 
@@ -97,11 +97,11 @@ public:
   /// call trigger (method) on the effective strategy of pitEntry
 #ifdef WITH_TESTS
   virtual void
-  dispatchPITlessToStrategy(const Name& prefix, function<void(fw::PITlessStrategy*)> trigger);
+  dispatchToBridgeStrategy(const Name& prefix, function<void(fw::BridgeStrategy*)> trigger);
 #else
   template<class Function>
   void
-  dispatchToPITlessStrategy(const Name& prefix, Function trigger);
+  dispatchToBridgeStrategy(const Name& prefix, Function trigger);
 #endif
 };
 
@@ -119,17 +119,17 @@ BridgeForwarder::onData(Face& face, const Data& data)
 
 #ifdef WITH_TESTS
 inline void
-BridgeForwarder::dispatchToPITlessStrategy(const Name& prefix, function<void(fw::PITlessStrategy*)> trigger)
+BridgeForwarder::dispatchToBridgeStrategy(const Name& prefix, function<void(fw::BridgeStrategy*)> trigger)
 #else
 template<class Function>
 inline void
-BridgeForwarder::dispatchToPITlessStrategy(const Name& prefix, Function trigger)
+BridgeForwarder::dispatchToBridgeStrategy(const Name& prefix, Function trigger)
 #endif
 {
   fw::Strategy& strategy = Forwarder::getStrategyChoice().findEffectiveStrategy(prefix);
-  trigger(&((fw::PITlessStrategy&)(strategy)));
+  trigger(&((fw::BridgeStrategy&)(strategy)));
 }
 
 } // namespace nfd
 
-#endif // NFD_DAEMON_FW_PITLESS_FORWARDER_HPP
+#endif // NFD_DAEMON_FW_PITLESS_BRIDGE_FORWARDER_HPP

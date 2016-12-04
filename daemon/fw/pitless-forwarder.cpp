@@ -122,7 +122,7 @@ PITlessForwarder::onContentStoreMiss(const Face& inFace,
   // TODO(cesar): this is hard coded, find a better way.
   Name strategyName = PITlessBestRouteStrategy::STRATEGY_NAME;
   fw::Strategy* strategy = Forwarder::getStrategyChoice().getStrategy(strategyName);
-  ((fw::PITlessStrategy*)(strategy))->afterReceiveInterestPITless(cref(inFace), cref(interest), fibEntry);
+  ((fw::PITlessStrategy*)(strategy))->afterReceiveInterestPITless(cref(inFace), interest, fibEntry);
 }
 
 void
