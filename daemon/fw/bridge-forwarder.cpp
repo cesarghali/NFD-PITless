@@ -68,7 +68,7 @@ BridgeForwarder::onIncomingInterest(Face& inFace, const Interest& interest)
   const_cast<Interest&>(interest).setIncomingFaceId(inFace.getId());
   ++m_counters.getNInInterests();
 
-  std::cout << "BridgeForwarder::onIncomingInterest " << interest.getName() << std::endl;
+  // std::cout << "BridgeForwarder::onIncomingInterest " << interest.getName() << std::endl;
 
   // /localhost scope control
   bool isViolatingLocalhost = !inFace.isLocal() &&
@@ -230,7 +230,7 @@ BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
     return;
   }
 
-  std::cout << "BridgeForwarder::onIncomingData " << data.getName() << std::endl;
+  // std::cout << "BridgeForwarder::onIncomingData " << data.getName() << std::endl;
 
   // PIT match
   pit::DataMatchResult pitMatches = m_pit.findAllDataMatchesByName(data.getSupportingName());
