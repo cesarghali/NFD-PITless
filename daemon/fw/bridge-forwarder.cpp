@@ -246,10 +246,11 @@ BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
     return;
   }
 
-  // Reset the name so its forwarded downstream correctly
+  // Reset the name so it's forwarded downstream correctly
   // The supporting name carries the name of the original interest, which is
   // what is used to route downstream.
   const_cast<Data&>(data).setName(data.getSupportingName());
+  
 
   // Remove Ptr<Packet> from the Data before inserting into cache, serving two purposes
   // - reduce amount of memory used by cached entries
