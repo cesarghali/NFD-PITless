@@ -234,6 +234,7 @@ BridgeForwarder::onIncomingData(Face& inFace, const Data& data)
   }
 
   //std::cout << m_id << " forwarding data" << std::endl;
+
   // std::cout << "BridgeForwarder::onIncomingData " << data.getName() << std::endl;
 
   // PIT match
